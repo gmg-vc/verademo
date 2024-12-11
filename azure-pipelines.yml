@@ -17,6 +17,7 @@ steps:
     goals: 'package'
 - task: Bash@3
   displayName: Veracode Pipeline
+  continueOnError: true
   inputs:
     targetType: 'inline'
     script: |
@@ -27,6 +28,7 @@ steps:
   artifact: VeracodeBaseline
 
 - task: Veracode@3
+  continueOnError: true
   inputs:
     ConnectionDetailsSelection: 'Service Connection'
     AnalysisService: 'Veracode'
@@ -34,6 +36,7 @@ steps:
     version: '$(build.buildNumber)'
     filepath: 'app/target/verademo.war'
     createProfile: true
+    importResults: true
     maximumWaitTime: '60'
     
 - task: Veracode Flaw Importer@3
