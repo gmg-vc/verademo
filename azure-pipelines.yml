@@ -6,26 +6,50 @@
 trigger:
 - main
 pool:
-  vmImage: 'ubuntu-latest'
+  name: Default
 steps:
 - task: Maven@3
   displayName: Build with Maven
   inputs:
     mavenPomFile: 'app/pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.8'
-    jdkArchitectureOption: 'x64'
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     goals: 'package'
 - task: Bash@3
   displayName: Veracode Pipeline
+  continueOnError: true
   inputs:
     targetType: 'inline'
     script: |
       curl -sSO https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip
       unzip -o pipeline-scan-LATEST.zip
-      java -jar pipeline-scan.jar -vid $(VERACODE_API_ID) -vkey $(VERACODE_API_KEY) -f /home/vsts/work/1/s/app/target/verademo.war || true
+      java -jar pipeline-scan.jar -vid $(VERACODE_API_ID) -vkey $(VERACODE_API_KEY) -f app/target/verademo.war
 - publish: $(System.DefaultWorkingDirectory)/results.json
   artifact: VeracodeBaseline
+
+- task: Veracode@3
+  continueOnError: true
+  inputs:
+    ConnectionDetailsSelection: 'Service Connection'
+    AnalysisService: 'Veracode'
+    veracodeAppProfile: 'Azure Test 2'
+    version: '$(build.buildNumber)'
+    filepath: 'app/target/verademo.war'
+    createProfile: true
+    importResults: true
+    maximumWaitTime: '60'
+    
+- task: Veracode Flaw Importer@3
+  inputs:
+    ConnectionDetailsSelection: 'Service Connection'
+    AnalysisService: 'Veracode'
+    veracodeAppProfile: 'Azure Test 2'
+    sandboxName: 
+    scanType: 'Dynamic, Static'
+    importType: 'All Flaws'
+    workItemType: 'Bug'
+    area: '$(system.teamProject)'
+    overwriteAreaPathInWorkItemsOnImport: true
+    iterationPath: '$(system.teamProject)'
+    overwriteIterationPath: true
+    flawImportLimit: '1'
